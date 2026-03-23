@@ -93,6 +93,7 @@ except Exception as e:
     client = None
 
 def ask_ai(prompt):
+    # Model ismi güncellendi: llama-3.3-70b-versatile
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
@@ -211,7 +212,6 @@ with st.container():
     with col_chat:
         st.markdown("### 💬 AI ile Sohbet (Hafızalı)")
         
-        # 1. Konuşma belleğini (Chat Memory) başlat
         if "chat_memory" not in st.session_state:
             st.session_state.chat_memory = [
                 {"role": "system", "content": "Sen samimi bir uyku koçusun. Kısa ve net cevaplar ver."}
@@ -227,20 +227,18 @@ with st.container():
             else:
                 with st.spinner("Düşünüyor..."):
                     try:
-                        # 2. Kullanıcının yeni sorusunu belleğe ekle
                         st.session_state.chat_memory.append({"role": "user", "content": user_question})
                         
-                        # 3. Tüm geçmişi (belleği) Groq'a gönder
+                        # Model ismi güncellendi: llama-3.3-70b-versatile
                         response = client.chat.completions.create(
-                            model="llama3-8b-8192",
+                            model="llama-3.3-70b-versatile",
                             messages=st.session_state.chat_memory,
                             max_tokens=150
                         )
                         
-                        # 4. AI'ın cevabını al ve onu da belleğe ekle
                         ai_reply = response.choices[0].message.content
                         st.session_state.chat_memory.append({"role": "assistant", "content": ai_reply})
-                        st.session_state.show_chat = True # Cevap gelince görünür yap
+                        st.session_state.show_chat = True 
                         
                     except Exception as e:
                         st.error(f"Sistem meşgul: {e}")
@@ -255,12 +253,11 @@ with st.container():
                     st.markdown(f"<div class='chat-bubble' style='position: relative; bottom: 0; right: 0; margin-bottom: 15px;'><b>🤖 AI:</b> {msg['content']}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
-            # İSTEDİĞİN BUTON: Kapatma / Gizleme butonu
+            # İstediğin buton: Kapatma / Gizleme
             if st.button("✅ Tamam, Anladım", key="close_chat_btn"):
                 st.session_state.show_chat = False
                 st.rerun()
 
-            # Belleği tamamen sıfırlama seçeneği
             if st.button("Sohbeti Temizle", key="clear_chat"):
                 st.session_state.chat_memory = [{"role": "system", "content": "Sen samimi bir uyku koçusun. Kısa ve net cevaplar ver."}]
                 st.session_state.show_chat = False
