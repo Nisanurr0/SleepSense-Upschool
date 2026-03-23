@@ -8,7 +8,8 @@ Günümüzde pek çok kişi kalitesiz uyku sorunu çekiyor ancak bunun gün içi
 SleepSense, kullanıcının günlük verilerini ve konum bazlı çevresel faktörleri analiz ederek yapay zeka destekli, kişiselleştirilmiş uyku tavsiyeleri sunan akıllı bir uyku takip asistanıdır.
 
 ## 🚀 Canlı Demo
-* **Yayın Linki:** [5. Adımda eklenecek]
+* **Yayın Linki:**## 🚀 Canlı Demo
+* **Yayın Linki:** https://sleepsense-upschool-drzuzykz6fh7cpwg8zmc7n.streamlit.app/
 * **Demo Video:** [6. Adımda eklenecek]
 
 ## 📸 Uygulama Görüntüleri
