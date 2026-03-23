@@ -201,11 +201,22 @@ for key in ["food_morning","food_noon","food_evening", "drink_morning","drink_no
 st.session_state.setdefault("last_chat_response", "")
 st.session_state.setdefault("address", "")
 st.session_state.setdefault("location_info", None)
+st.session_state.setdefault("show_chat", False)
 
+# ─────────────────────────────────────────────
+# AI Sohbet Kutusu (Hafızalı Orta Seviye Entegrasyon)
+# ─────────────────────────────────────────────
 with st.container():
     col_left, col_chat = st.columns([0.6, 0.4])
     with col_chat:
-        st.markdown("### 💬 AI ile Sohbet")
+        st.markdown("### 💬 AI ile Sohbet (Hafızalı)")
+        
+        # 1. Konuşma belleğini (Chat Memory) başlat
+        if "chat_memory" not in st.session_state:
+            st.session_state.chat_memory = [
+                {"role": "system", "content": "Sen samimi bir uyku koçusun. Kısa ve net cevaplar ver."}
+            ]
+
         user_question = st.text_input("Uyku ile ilgili bir soru sor...", key="ai_question_input")
 
         if st.button("💭 Sor", key="ask_button"):
@@ -216,18 +227,44 @@ with st.container():
             else:
                 with st.spinner("Düşünüyor..."):
                     try:
-                        cevap = ask_ai(
-                            f"Kullanıcı sordu: {user_question}\n\nBu soruya kısa ve faydalı bir cevap ver (max 100 kelime, Türkçe)"
+                        # 2. Kullanıcının yeni sorusunu belleğe ekle
+                        st.session_state.chat_memory.append({"role": "user", "content": user_question})
+                        
+                        # 3. Tüm geçmişi (belleği) Groq'a gönder
+                        response = client.chat.completions.create(
+                            model="llama3-8b-8192",
+                            messages=st.session_state.chat_memory,
+                            max_tokens=150
                         )
-                        st.session_state.last_chat_response = cevap
+                        
+                        # 4. AI'ın cevabını al ve onu da belleğe ekle
+                        ai_reply = response.choices[0].message.content
+                        st.session_state.chat_memory.append({"role": "assistant", "content": ai_reply})
+                        st.session_state.show_chat = True # Cevap gelince görünür yap
+                        
                     except Exception as e:
-                        st.session_state.last_chat_response = f"❌ Hata: {str(e)}"
+                        st.error(f"Sistem meşgul: {e}")
 
-        if st.session_state.last_chat_response:
-            st.markdown(
-                f'<div class="chat-bubble">{st.session_state.last_chat_response}</div>',
-                unsafe_allow_html=True
-            )
+        # 5. Sohbet Geçmişini Ekranda Göster (Koşullu)
+        if st.session_state.show_chat and len(st.session_state.chat_memory) > 1:
+            st.markdown("<div style='height: 250px; overflow-y: auto; padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px;'>", unsafe_allow_html=True)
+            for msg in st.session_state.chat_memory[1:]:
+                if msg["role"] == "user":
+                    st.markdown(f"<div style='text-align: right; color: #a8d5ff; margin-bottom: 5px;'><b>Sen:</b> {msg['content']}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div class='chat-bubble' style='position: relative; bottom: 0; right: 0; margin-bottom: 15px;'><b>🤖 AI:</b> {msg['content']}</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            # İSTEDİĞİN BUTON: Kapatma / Gizleme butonu
+            if st.button("✅ Tamam, Anladım", key="close_chat_btn"):
+                st.session_state.show_chat = False
+                st.rerun()
+
+            # Belleği tamamen sıfırlama seçeneği
+            if st.button("Sohbeti Temizle", key="clear_chat"):
+                st.session_state.chat_memory = [{"role": "system", "content": "Sen samimi bir uyku koçusun. Kısa ve net cevaplar ver."}]
+                st.session_state.show_chat = False
+                st.rerun()
 
 st.sidebar.header("Kullanıcı Profili")
 age     = st.sidebar.number_input("Yaş", min_value=1, max_value=120, value=25)
