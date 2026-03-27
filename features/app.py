@@ -93,7 +93,6 @@ except Exception as e:
     client = None
 
 def ask_ai(prompt):
-    # Model ismi güncellendi: llama-3.3-70b-versatile
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
@@ -229,7 +228,6 @@ with st.container():
                     try:
                         st.session_state.chat_memory.append({"role": "user", "content": user_question})
                         
-                        # Model ismi güncellendi: llama-3.3-70b-versatile
                         response = client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=st.session_state.chat_memory,
@@ -243,7 +241,6 @@ with st.container():
                     except Exception as e:
                         st.error(f"Sistem meşgul: {e}")
 
-        # 5. Sohbet Geçmişini Ekranda Göster (Koşullu)
         if st.session_state.show_chat and len(st.session_state.chat_memory) > 1:
             st.markdown("<div style='height: 250px; overflow-y: auto; padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px;'>", unsafe_allow_html=True)
             for msg in st.session_state.chat_memory[1:]:
@@ -253,7 +250,6 @@ with st.container():
                     st.markdown(f"<div class='chat-bubble' style='position: relative; bottom: 0; right: 0; margin-bottom: 15px;'><b>🤖 AI:</b> {msg['content']}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
-            # İstediğin buton: Kapatma / Gizleme
             if st.button("✅ Tamam, Anladım", key="close_chat_btn"):
                 st.session_state.show_chat = False
                 st.rerun()
@@ -502,3 +498,611 @@ if dream_data:
             st.write(dream_text)
 else:
     st.write("💭 Henüz rüya kaydınız yok. Gördüğünüz rüyaları sidebar'dan kaydedebilirsiniz!")
+
+
+# ════════════════════════════════════════════════════════════════
+# YENİ BLOK 1 — 💯 UYKU SKORU (0-100)
+# ════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown("## 💯 Uyku Skoru")
+
+def hesapla_uyku_skoru(sleep_time, wake_time, night_awake_duration, sleep_quality, nap_duration, mood, activity_level, noise_list):
+    skor = 0
+
+    # 1. Süre puanı (max 30)
+    if sleep_time and wake_time:
+        sleep_dt = datetime.combine(date.today(), sleep_time)
+        wake_dt  = datetime.combine(date.today(), wake_time)
+        if wake_dt <= sleep_dt:
+            wake_dt += timedelta(days=1)
+        net_min = int((wake_dt - sleep_dt).total_seconds() / 60) - night_awake_duration
+        net_min = max(0, net_min)
+        if 420 <= net_min <= 480:
+            skor += 30
+        elif 360 <= net_min < 420 or 480 < net_min <= 540:
+            skor += 20
+        elif 300 <= net_min < 360 or 540 < net_min <= 600:
+            skor += 10
+        else:
+            skor += 0
+    else:
+        skor += 15  # veri yok, nötr
+
+    # 2. Kalite puanı (max 30)
+    skor += int(sleep_quality / 5 * 30)
+
+    # 3. Ruh hali (max 15)
+    mood_puan = {"Enerjik ⚡": 15, "Mutlu 😊": 12, "Yorgun 😴": 6, "Stresli 😫": 4, "Üzgün 😢": 3}
+    skor += mood_puan.get(mood, 8)
+
+    # 4. Hareket (max 10)
+    aktivite_puan = {"Çok 🏃": 10, "Orta 🚶": 7, "Az 🐢": 3}
+    skor += aktivite_puan.get(activity_level, 5)
+
+    # 5. Gürültü etkisi (max 10)
+    ciddi_gurultu = ["Otoyol", "Demiryolu", "Metro hattı", "Havalimanı", "Gece kulübü"]
+    gurultu_puani = 10
+    for g in noise_list:
+        for cg in ciddi_gurultu:
+            if cg in g:
+                gurultu_puani -= 3
+    skor += max(0, gurultu_puani)
+
+    # 6. Gündüz uykusu bonusu/cezası (max 5)
+    if nap_duration == 0:
+        skor += 5
+    elif nap_duration <= 30:
+        skor += 3
+    else:
+        skor += 0
+
+    return min(100, max(0, skor))
+
+info_loc     = st.session_state.get("location_info") or {}
+noise_list_s = info_loc.get("noise", [])
+
+uyku_skoru = hesapla_uyku_skoru(
+    sleep_time, wake_time, night_awake_duration,
+    sleep_quality, nap_duration, mood, activity_level, noise_list_s
+)
+
+renk = "#ff4b4b" if uyku_skoru < 40 else ("#ffa500" if uyku_skoru < 70 else "#00cc66")
+yorum = (
+    "😴 Çok kötü — bu geceyi telafi etmeye çalış." if uyku_skoru < 40 else
+    "😐 Orta — birkaç alışkanlık değişikliği büyük fark yaratır." if uyku_skoru < 60 else
+    "😊 İyi — doğru yoldasın, devam et!" if uyku_skoru < 80 else
+    "🌟 Mükemmel — bu alışkanlıkları koru!"
+)
+
+st.markdown(
+    f"""
+    <div style="text-align:center; padding: 20px;">
+        <div style="font-size: 80px; font-weight: bold; color: {renk};">{uyku_skoru}</div>
+        <div style="font-size: 20px; color: #ccc;">/ 100</div>
+        <div style="font-size: 18px; margin-top: 10px;">{yorum}</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+sc1, sc2, sc3, sc4 = st.columns(4)
+with sc1: st.metric("Süre", "30 puan maks")
+with sc2: st.metric("Kalite", "30 puan maks")
+with sc3: st.metric("Ruh Hali + Aktivite", "25 puan maks")
+with sc4: st.metric("Çevre (gürültü/nap)", "15 puan maks")
+
+
+# ════════════════════════════════════════════════════════════════
+# YENİ BLOK 2 — 📅 HAFTALIK AI RAPORU
+# ════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown("## 📅 Haftalık AI Raporu")
+
+if st.button("🔍 Haftalık Rapor Oluştur", key="weekly_report_btn"):
+    if not client:
+        st.error("Groq bağlantısı kurulamadı.")
+    else:
+        conn = sqlite3.connect("users.db")
+        c = conn.cursor()
+        c.execute("""SELECT date, food_morning, food_noon, food_evening,
+                            drink_morning, drink_noon, drink_evening,
+                            mood, sleep_time, wake_time, sleep_quality, activity_level
+                     FROM daily_entries ORDER BY date DESC LIMIT 7""")
+        rows = c.fetchall()
+        conn.close()
+
+        if not rows:
+            st.warning("Henüz yeterli veri yok. Birkaç gün veri girdikten sonra tekrar dene.")
+        else:
+            with st.spinner("AI haftalık raporunu hazırlıyor..."):
+                try:
+                    ozet = ""
+                    for r in reversed(rows):
+                        ozet += (
+                            f"\nTarih: {r[0]} | Sabah: {r[1]} | Öğlen: {r[2]} | Akşam: {r[3]} | "
+                            f"İçecekler: {r[4]}, {r[5]}, {r[6]} | Ruh hali: {r[7]} | "
+                            f"Yatış: {r[8]} | Uyanış: {r[9]} | Kalite: {r[10]}/5 | Aktivite: {r[11]}"
+                        )
+
+                    prompt = f"""
+Aşağıda bir kullanıcının son {len(rows)} günlük uyku ve beslenme verisi var:
+{ozet}
+
+Bu verilere bakarak:
+1. Uyku kalitesini etkileyen 2 önemli pattern bul (örn: "Akşam kahve içtiğinde kalite düşüyor")
+2. Beslenme açısından 1 dikkat çekici nokta belirt
+3. Genel bir öneri ver
+
+Türkçe, madde madde, kısa ve net yaz. Toplam 5-6 cümleyi geçme.
+"""
+                    rapor = ask_ai(prompt)
+                    st.success("📊 Haftalık Analiz:")
+                    st.write(rapor)
+                except Exception as e:
+                    st.error(f"Hata: {e}")
+
+
+# ════════════════════════════════════════════════════════════════
+# YENİ BLOK 3 — 🌙 RÜYA ANALİZİ (AI)
+# ════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown("## 🌙 Rüya Analizi")
+
+if st.button("🔮 Rüyalarımı AI ile Analiz Et", key="dream_analysis_btn"):
+    if not client:
+        st.error("Groq bağlantısı kurulamadı.")
+    else:
+        conn = sqlite3.connect("users.db")
+        c = conn.cursor()
+        c.execute("SELECT date, dream FROM daily_entries WHERE dream IS NOT NULL AND dream != '' ORDER BY date DESC LIMIT 7")
+        dream_rows = c.fetchall()
+        conn.close()
+
+        if not dream_rows:
+            st.warning("Henüz rüya kaydın yok. Sidebar'dan rüyalarını ekleyebilirsin.")
+        else:
+            with st.spinner("AI rüyalarını analiz ediyor..."):
+                try:
+                    ruya_metni = "\n".join([f"{r[0]}: {r[1]}" for r in dream_rows])
+                    prompt = f"""
+Aşağıda bir kullanıcının son günlerde gördüğü rüyalar var:
+{ruya_metni}
+
+Bu rüyaları analiz ederek:
+1. Genel tema veya tekrar eden motifler neler?
+2. Bu rüyalar duygusal durum hakkında ne söylüyor?
+3. Uyku kalitesiyle bir bağlantısı olabilir mi?
+
+Türkçe, samimi, 4-5 cümle yaz. Kesinlikle söyle tarzında değil, "olabilir, gösteriyor olabilir" gibi yumuşak bir dille yaz.
+"""
+                    analiz = ask_ai(prompt)
+                    st.info("🔮 Rüya Analizi:")
+                    st.write(analiz)
+                except Exception as e:
+                    st.error(f"Hata: {e}")
+
+
+# ════════════════════════════════════════════════════════════════
+# YENİ BLOK 4 — 📸 YEMEK FOTOĞRAFI ANALİZİ (AI Vision)
+# ════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown("## 📸 Yemek Fotoğrafı Analizi")
+st.caption("Fotoğraf çek veya yükle — AI yediğin yemekleri ve uyku üzerindeki etkisini analiz etsin.")
+
+import base64
+
+ogün_secim = st.selectbox(
+    "Hangi öğün?",
+    ["Sabah", "Öğlen", "Akşam"],
+    key="foto_ogun"
+)
+
+foto_kaynak = st.radio(
+    "Fotoğraf kaynağı",
+    ["Dosyadan Yükle 📁", "Kamera ile Çek 📷"],
+    horizontal=True,
+    key="foto_kaynak"
+)
+
+uploaded_foto = None
+if foto_kaynak == "Dosyadan Yükle 📁":
+    uploaded_foto = st.file_uploader(
+        "Yemek fotoğrafı yükle",
+        type=["jpg", "jpeg", "png", "webp"],
+        key="foto_uploader"
+    )
+else:
+    uploaded_foto = st.camera_input("Yemeğinin fotoğrafını çek", key="foto_kamera")
+
+if uploaded_foto is not None:
+    st.image(uploaded_foto, caption=f"{ogün_secim} yemeği", use_container_width=True)
+
+    if st.button("🍽️ Yemeği AI ile Analiz Et", key="foto_analiz_btn"):
+        if not client:
+            st.error("Groq bağlantısı kurulamadı.")
+        else:
+            with st.spinner("AI yemeğini inceliyor..."):
+                try:
+                    # Base64'e çevir
+                    img_bytes = uploaded_foto.read()
+                    img_b64   = base64.b64encode(img_bytes).decode("utf-8")
+                    mime_type = uploaded_foto.type or "image/jpeg"
+
+                    # Groq vision modeli: llama-4-scout-17b-16e-instruct
+                    vision_response = client.chat.completions.create(
+                        model="meta-llama/llama-4-scout-17b-16e-instruct",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:{mime_type};base64,{img_b64}"
+                                        }
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": f"""Bu fotoğraftaki yemeği analiz et. {ogün_secim} öğünü olarak yenmiş.
+
+Şunları söyle:
+1. Fotoğrafta ne var? (yemekleri listele)
+2. Bu yemekler uyku kalitesini nasıl etkiler? (olumlu/olumsuz)
+3. Varsa 1 öneri ver (örn: "akşam bu kadar ağır yemek yerine...")
+
+Türkçe, kısa ve samimi yaz. 4-5 cümle yeterli."""
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens=400,
+                    )
+
+                    analiz_sonuc = vision_response.choices[0].message.content
+                    st.success("🍽️ Yemek Analizi:")
+                    st.write(analiz_sonuc)
+
+                    # Analiz sonucunu ilgili öğünün yemek listesine otomatik ekle (opsiyonel ipucu)
+                    st.caption("💡 İpucu: Analiz sonucuna göre yukarıdaki yemek alanlarını güncelleyebilirsin.")
+
+                except Exception as e:
+                    st.error(f"Görüntü analizi başarısız: {e}")
+                    st.info("Not: Groq vision için 'meta-llama/llama-4-scout-17b-16e-instruct' modeli gereklidir. Groq hesabında bu modelin aktif olduğundan emin ol.")
+
+
+# ════════════════════════════════════════════════════════════════
+# YENİ BLOK 5 — 🎵 UYKU SESLERİ ÇALAR
+# ════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown("## 🎵 Uyku Sesleri")
+st.caption("Uyumadan önce dinlemek için doğa sesleri — süre ve ses seviyesi ayarlanabilir.")
+
+import streamlit.components.v1 as components
+
+ses_col1, ses_col2 = st.columns(2)
+
+with ses_col1:
+    secilen_ses = st.selectbox(
+        "Ses seç",
+        ["🌧️ Yağmur", "🧠 Beyaz Gürültü", "🌊 Okyanus Dalgaları"],
+        key="ses_secim"
+    )
+
+with ses_col2:
+    sure_dk = st.select_slider(
+        "Süre (dakika)",
+        options=[5, 10, 15, 20, 30, 45, 60],
+        value=15,
+        key="ses_sure"
+    )
+
+ses_seviyesi = st.slider("🔊 Ses Seviyesi", min_value=0, max_value=100, value=60, key="ses_seviye")
+
+ses_tipi_map = {
+    "🌧️ Yağmur": "rain",
+    "🧠 Beyaz Gürültü": "white",
+    "🌊 Okyanus Dalgaları": "ocean",
+}
+ses_tipi = ses_tipi_map[secilen_ses]
+sure_ms   = sure_dk * 60 * 1000
+
+components.html(
+    f"""
+    <div style="font-family: sans-serif; padding: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button onclick="startSound()" id="startBtn"
+                style="background:#00cc66; color:white; border:none; padding:10px 22px;
+                       border-radius:8px; font-size:15px; cursor:pointer;">
+                ▶ Başlat
+            </button>
+            <button onclick="stopSound()" id="stopBtn"
+                style="background:#ff4b4b; color:white; border:none; padding:10px 22px;
+                       border-radius:8px; font-size:15px; cursor:pointer; display:none;">
+                ⏹ Durdur
+            </button>
+            <span id="timerDisplay"
+                style="font-size:22px; font-weight:bold; color:#00cc66; min-width:80px;">
+                {sure_dk:02d}:00
+            </span>
+            <span id="statusText" style="color:#aaa; font-size:13px;">Hazır</span>
+        </div>
+        <div style="margin-top:10px; background:#222; border-radius:8px; height:8px; overflow:hidden;">
+            <div id="progressBar"
+                style="height:100%; width:0%; background:linear-gradient(90deg,#00cc66,#00aaff);
+                       transition: width 1s linear;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SES_TIPI  = "{ses_tipi}";
+        const VOLUME    = {ses_seviyesi} / 100;
+        const TOTAL_SEC = {sure_ms} / 1000;
+
+        let actx      = null;
+        let gainNode  = null;
+        let nodes     = [];
+        let interval  = null;
+        let remaining = TOTAL_SEC;
+
+        const startBtn  = document.getElementById('startBtn');
+        const stopBtn   = document.getElementById('stopBtn');
+        const timerDisp = document.getElementById('timerDisplay');
+        const statusTxt = document.getElementById('statusText');
+        const progBar   = document.getElementById('progressBar');
+
+        function formatTime(sec) {{
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        }}
+
+        function createWhiteNoise(ctx, gain) {{
+            const bufSize = ctx.sampleRate * 2;
+            const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+            const data    = buf.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.loop   = true;
+            src.connect(gain);
+            src.start();
+            return src;
+        }}
+
+        function createRain(ctx, gain) {{
+            // Birden fazla katmanlı filtreli gürültü = yağmur efekti
+            const srcs = [];
+            const layers = [
+                {{ freq: 800,  q: 0.8, g: 0.6 }},
+                {{ freq: 3000, q: 1.2, g: 0.3 }},
+                {{ freq: 200,  q: 0.5, g: 0.2 }},
+            ];
+            layers.forEach(l => {{
+                const bufSize = ctx.sampleRate * 2;
+                const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+                const data    = buf.getChannelData(0);
+                for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+                const src = ctx.createBufferSource();
+                src.buffer = buf;
+                src.loop   = true;
+                const filt = ctx.createBiquadFilter();
+                filt.type            = 'bandpass';
+                filt.frequency.value = l.freq;
+                filt.Q.value         = l.q;
+                const layerGain = ctx.createGain();
+                layerGain.gain.value = l.g;
+                src.connect(filt);
+                filt.connect(layerGain);
+                layerGain.connect(gain);
+                src.start();
+                srcs.push(src);
+            }});
+            return srcs;
+        }}
+
+        function createOcean(ctx, gain) {{
+            const srcs = [];
+            // Dalga efekti: düşük frekanslı gürültü + yavaş LFO
+            const bufSize = ctx.sampleRate * 4;
+            const buf     = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+            const data    = buf.getChannelData(0);
+            for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.loop   = true;
+
+            const filt = ctx.createBiquadFilter();
+            filt.type            = 'lowpass';
+            filt.frequency.value = 600;
+            filt.Q.value         = 0.5;
+
+            // LFO dalga modülasyonu
+            const lfo      = ctx.createOscillator();
+            const lfoGain  = ctx.createGain();
+            lfo.frequency.value  = 0.15;
+            lfoGain.gain.value   = 0.4;
+            lfo.connect(lfoGain);
+            lfoGain.connect(gain.gain);
+            lfo.start();
+
+            src.connect(filt);
+            filt.connect(gain);
+            src.start();
+            srcs.push(src, lfo);
+            return srcs;
+        }}
+
+        function startSound() {{
+            actx     = new (window.AudioContext || window.webkitAudioContext)();
+            gainNode = actx.createGain();
+            gainNode.gain.value = VOLUME;
+            gainNode.connect(actx.destination);
+
+            if      (SES_TIPI === 'white') nodes = [createWhiteNoise(actx, gainNode)];
+            else if (SES_TIPI === 'rain')  nodes = createRain(actx, gainNode);
+            else                           nodes = createOcean(actx, gainNode);
+
+            startBtn.style.display = 'none';
+            stopBtn.style.display  = 'inline-block';
+            statusTxt.textContent  = '🎵 Çalıyor...';
+            remaining = TOTAL_SEC;
+
+            interval = setInterval(() => {{
+                remaining -= 1;
+                timerDisp.textContent = formatTime(remaining);
+                const pct = ((TOTAL_SEC - remaining) / TOTAL_SEC) * 100;
+                progBar.style.width = pct + '%';
+                if (remaining <= 0) {{
+                    stopSound();
+                    statusTxt.textContent = '✅ Süre doldu, iyi geceler!';
+                }}
+            }}, 1000);
+        }}
+
+        function stopSound() {{
+            if (actx) {{ actx.close(); actx = null; }}
+            clearInterval(interval);
+            nodes = [];
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display  = 'none';
+            timerDisp.textContent  = formatTime(TOTAL_SEC);
+            progBar.style.width    = '0%';
+            if (remaining > 0) statusTxt.textContent = 'Durduruldu';
+        }}
+    </script>
+    """,
+    height=160,
+)
+
+
+# ════════════════════════════════════════════════════════════════
+# YENİ BLOK 6 — 🔥 GÜNLÜK STREAK (Seri Takibi)
+# ════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown("## 🔥 Günlük Seri")
+st.caption("Her gün veri girersen serin büyür. Bir gün atlarsan sıfırlanır!")
+
+def hesapla_streak():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT DISTINCT date FROM daily_entries ORDER BY date DESC")
+    tarihler = [row[0] for row in c.fetchall()]
+    conn.close()
+
+    if not tarihler:
+        return 0, 0, False
+
+    bugun           = str(date.today())
+    streak          = 0
+    en_uzun         = 0
+    temp_streak     = 0
+
+    # Mevcut streak hesapla (bugünden geriye doğru)
+    kontrol_tarihi = date.today()
+    for t in tarihler:
+        if t == str(kontrol_tarihi):
+            streak += 1
+            kontrol_tarihi -= timedelta(days=1)
+        else:
+            break
+
+    # Bugün giriş yapılmış mı?
+    bugun_giris = bugun in tarihler
+
+    # En uzun streak hesapla
+    if tarihler:
+        sorted_dates = sorted(tarihler)
+        temp_streak  = 1
+        for i in range(1, len(sorted_dates)):
+            d1 = datetime.strptime(sorted_dates[i-1], "%Y-%m-%d").date()
+            d2 = datetime.strptime(sorted_dates[i],   "%Y-%m-%d").date()
+            if (d2 - d1).days == 1:
+                temp_streak += 1
+                en_uzun = max(en_uzun, temp_streak)
+            else:
+                temp_streak = 1
+        en_uzun = max(en_uzun, temp_streak)
+
+    return streak, en_uzun, bugun_giris
+
+streak, en_uzun_streak, bugun_giris = hesapla_streak()
+
+# Ateş büyüklüğü ve rengi streak'e göre değişir
+if streak == 0:
+    ates_emoji  = "💤"
+    streak_renk = "#888888"
+    mesaj       = "yok yok yok."
+elif streak < 3:
+    ates_emoji  = "🔥"
+    streak_renk = "#ffa500"
+    mesaj       = "bakalım ne kadar 👀"
+elif streak < 7:
+    ates_emoji  = "🔥🔥"
+    streak_renk = "#ff6600"
+    mesaj       = "hâlâ buradasın?"
+elif streak < 14:
+    ates_emoji  = "🔥🔥🔥"
+    streak_renk = "#ff3300"
+    mesaj       = "tamam ciddi misin"
+else:
+    ates_emoji  = "🔥🔥🔥🔥"
+    streak_renk = "#ff0000"
+    mesaj       = "bu anormal. tebrikler."
+
+# Görsel gösterim
+st.markdown(
+    f"""
+    <div style="text-align:center; padding: 25px; background: rgba(255,100,0,0.08);
+                border-radius: 16px; border: 1px solid rgba(255,100,0,0.2);">
+        <div style="font-size: 60px;">{ates_emoji}</div>
+        <div style="font-size: 64px; font-weight: bold; color: {streak_renk};
+                    text-shadow: 0 0 20px {streak_renk};">
+            {streak}
+        </div>
+        <div style="font-size: 16px; color: #ccc; margin-top: 4px;">günlük seri</div>
+        <div style="font-size: 15px; color: #aaa; margin-top: 8px;">{mesaj}</div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.write("")
+
+# Metrikler
+m1, m2, m3 = st.columns(3)
+with m1:
+    st.metric("🔥 Mevcut Seri",  f"{streak} gün")
+with m2:
+    st.metric("🏆 En Uzun Seri", f"{en_uzun_streak} gün")
+with m3:
+    st.metric("📅 Bugün Giriş",  "✅ Yapıldı" if bugun_giris else "❌ Yapılmadı")
+
+# Son 7 günün görsel takvimi
+st.markdown("### 📆 Son 7 Gün")
+conn = sqlite3.connect("users.db")
+c = conn.cursor()
+c.execute("SELECT DISTINCT date FROM daily_entries")
+tum_tarihler = set(row[0] for row in c.fetchall())
+conn.close()
+
+takvim_cols = st.columns(7)
+for i, col in enumerate(takvim_cols):
+    gun     = date.today() - timedelta(days=6 - i)
+    gun_str = str(gun)
+    gun_adi = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"][gun.weekday()]
+    giris_var = gun_str in tum_tarihler
+    with col:
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding:8px; border-radius:10px;
+                        background: {'rgba(0,200,100,0.2)' if giris_var else 'rgba(255,255,255,0.05)'};
+                        border: 1px solid {'#00cc66' if giris_var else 'rgba(255,255,255,0.1)'};">
+                <div style="font-size:20px;">{'✅' if giris_var else '⬜'}</div>
+                <div style="font-size:11px; color:#aaa;">{gun_adi}</div>
+                <div style="font-size:10px; color:#666;">{gun.day}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
