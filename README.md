@@ -1,4 +1,4 @@
-# SleepSense-Upschool
+# SleepSense
 # 🌙 SleepSense Pro
 
 ## 🎯 Problem
