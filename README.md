@@ -10,7 +10,7 @@ SleepSense, kullanıcının günlük verilerini ve konum bazlı çevresel faktö
 ## 🚀 Canlı Demo
 * **Yayın Linki:**## 🚀 Canlı Demo
 * **Yayın Linki:** https://sleepsense-upschool-drzuzykz6fh7cpwg8zmc7n.streamlit.app/
-* **Demo Video:** https://youtu.be/klFpkKFYEdY?si=UdwMzJ13i3-RmwDT
+
 
 ## 🛠️ Kullanılan Teknolojiler
 * **Frontend:** Streamlit
